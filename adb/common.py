@@ -19,6 +19,7 @@ import logging
 import socket
 import threading
 import weakref
+import select
 
 import libusb1
 import usb1
@@ -276,12 +277,13 @@ class UsbHandle(object):
         yield handle
 
 class TcpHandle(object):
-  """TCP connection object.
+  """Tcp connection object.
 
-     Provides same interface as UsbHandle but ignores timeout."""
+     Provides same interface as UsbHandle. """
 
-  def __init__(self, serial):
-    """Initialize the TCP Handle.
+  def __init__(self, serial, timeout_ms=None):
+    """Initialize the Tcp Handle.
+
     Arguments:
       serial: Android device serial of the form host or host:port.
 
@@ -292,22 +294,34 @@ class TcpHandle(object):
     else:
       host = serial
       port = 5555
+    self._timeout_ms = timeout_ms
     self._serial_number = '%s:%s' % (host, port)
-
-    self._connection = socket.create_connection((host, port))
+    self._timeout_ms = float(timeout_ms)
+    timeout = float(timeout_ms)/1000.0 if timeout_ms else None 
+    self._connection = socket.create_connection((host,port),timeout=timeout)
+    if timeout:
+        self._connection.setblocking(0)
 
   @property
   def serial_number(self):
     return self._serial_number
 
   def BulkWrite(self, data, timeout=None):
+      if self._timeout_ms:
+          return self._connection.send(data)
       return self._connection.sendall(data)
 
-  def BulkRead(self, numbytes, timeout=None):
-      return self._connection.recv(numbytes)
+  def BulkRead(self, numbytes, timeout_ms=None):
+      t = self.Timeout(timeout_ms)/1000.0 if self.Timeout(timeout_ms) else None
+      ready = select.select([self._connection], [], [], t)
+      if ready[0]:
+        return self._connection.recv(numbytes)
+      msg = 'Reading from {} timed out (Timeout {}s)'.format(self._serial_number,t)
+      raise usb_exceptions.TcpTimeoutException(msg)
 
   def Timeout(self, timeout_ms):
-      return timeout_ms
+      return float(timeout_ms) if timeout_ms is not None else self._timeout_ms
+
 
   def Close(self):
       return self._connection.close()
