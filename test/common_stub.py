@@ -80,7 +80,7 @@ class StubTcp(StubUsb):
       raise ValueError('Expected %s (%s) got %s (%s)' % (
           binascii.hexlify(expected_data), _Dotify(expected_data),
           binascii.hexlify(data), _Dotify(data)))
-    if 'i_need_a_timeout' in data:
+    if b'i_need_a_timeout' in data:
       self.__alarm_sounder(timeout_ms)  
       time.sleep(2*self.__return_seconds(timeout_ms))
 
@@ -91,7 +91,7 @@ class StubTcp(StubUsb):
       raise ValueError(
           'Overflow packet length. Read %d bytes, got %d bytes: %s',
           length, len(data))
-    if 'i_need_a_timeout' in data:
+    if b'i_need_a_timeout' in data:
       self.__alarm_sounder(timeout_ms)  
       time.sleep(2*self.__return_seconds(timeout_ms))
     return bytearray(data)  
