@@ -59,13 +59,13 @@ class StubUsb(object):
 
 class StubTcp(StubUsb):
 
-  def _signal_handler(self, signum, frame):
+  def __signal_handler(self, signum, frame):
       raise TcpTimeoutException('End of time')
 
-  def _return_seconds(self, time_ms):
+  def __return_seconds(self, time_ms):
       return (float(time_ms)/1000) if time_ms else 0
 
-  def _alarm_sounder(self, timeout_ms):
+  def __alarm_sounder(self, timeout_ms):
     signal.signal(signal.SIGALRM, self.__signal_handler) 
     signal.setitimer(signal.ITIMER_REAL,
             self.__return_seconds(timeout_ms))
