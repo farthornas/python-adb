@@ -59,16 +59,16 @@ class StubUsb(object):
 
 class StubTcp(StubUsb):
 
-  def __signal_handler(self, signum, frame):
+  def _signal_handler(self, signum, frame):
       raise TcpTimeoutException('End of time')
 
-  def __return_seconds(self, time_ms):
+  def _return_seconds(self, time_ms):
       return (float(time_ms)/1000) if time_ms else 0
 
-  def __alarm_sounder(self, timeout_ms):
-    signal.signal(signal.SIGALRM, self.__signal_handler) 
+  def _alarm_sounder(self, timeout_ms):
+    signal.signal(signal.SIGALRM, self._signal_handler) 
     signal.setitimer(signal.ITIMER_REAL,
-            self.__return_seconds(timeout_ms))
+            self._return_seconds(timeout_ms))
   
   def BulkWrite(self, data, timeout_ms=None):
     expected_data = self.written_data.pop(0)
@@ -81,8 +81,8 @@ class StubTcp(StubUsb):
           binascii.hexlify(expected_data), _Dotify(expected_data),
           binascii.hexlify(data), _Dotify(data)))
     if b'i_need_a_timeout' in data:
-      self.__alarm_sounder(timeout_ms)  
-      time.sleep(2*self.__return_seconds(timeout_ms))
+      self._alarm_sounder(timeout_ms)  
+      time.sleep(2*self._return_seconds(timeout_ms))
 
   def BulkRead(self, length,
                timeout_ms=None):  # pylint: disable=unused-argument
@@ -92,7 +92,7 @@ class StubTcp(StubUsb):
           'Overflow packet length. Read %d bytes, got %d bytes: %s',
           length, len(data))
     if b'i_need_a_timeout' in data:
-      self.__alarm_sounder(timeout_ms)  
-      time.sleep(2*self.__return_seconds(timeout_ms))
+      self._alarm_sounder(timeout_ms)  
+      time.sleep(2*self._return_seconds(timeout_ms))
     return bytearray(data)  
 
