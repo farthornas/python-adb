@@ -277,7 +277,7 @@ class UsbHandle(object):
         yield handle
 
 class TcpHandle(object):
-  """Tcp connection object.
+  """TCP connection object.
 
      Provides same interface as UsbHandle. """
 
@@ -294,11 +294,10 @@ class TcpHandle(object):
     else:
       host = serial
       port = 5555
-    self._timeout_ms = timeout_ms
     self._serial_number = '%s:%s' % (host, port)
-    self._timeout_ms = float(timeout_ms)
-    timeout = float(timeout_ms)/1000.0 if timeout_ms else None 
-    self._connection = socket.create_connection((host,port),timeout=timeout)
+    self._timeout_ms = float(timeout_ms) if timeout_ms else None
+    timeout = self._timeout_ms/1000.0 if timeout_ms else None 
+    self._connection = socket.create_connection((host, port), timeout=timeout)
     if timeout:
         self._connection.setblocking(0)
 
@@ -307,21 +306,25 @@ class TcpHandle(object):
     return self._serial_number
 
   def BulkWrite(self, data, timeout=None):
-      if self._timeout_ms:
-          return self._connection.send(data)
-      return self._connection.sendall(data)
+      t = self.Timeout(timeout)/1000.0 if self.Timeout(timeout) else None
+      writeable = select.select([], [self._connection], [], t)
+      if writeable[1]:
+        return self._connection.send(data)
+      msg = 'Sending data to {} timed out after {}s. No was data sent.'.format(
+              self.serial_number, t)
+      raise usb_exceptions.TcpTimeoutException(msg) 
 
-  def BulkRead(self, numbytes, timeout_ms=None):
-      t = self.Timeout(timeout_ms)/1000.0 if self.Timeout(timeout_ms) else None
-      ready = select.select([self._connection], [], [], t)
-      if ready[0]:
+  def BulkRead(self, numbytes, timeout=None):
+      t = self.Timeout(timeout)/1000.0 if self.Timeout(timeout) else None
+      readable = select.select([self._connection], [], [], t)
+      if readable[0]:
         return self._connection.recv(numbytes)
-      msg = 'Reading from {} timed out (Timeout {}s)'.format(self._serial_number,t)
+      msg = 'Reading from {} timed out (Timeout {}s)'.format(
+              self._serial_number,t)
       raise usb_exceptions.TcpTimeoutException(msg)
 
   def Timeout(self, timeout_ms):
       return float(timeout_ms) if timeout_ms is not None else self._timeout_ms
-
 
   def Close(self):
       return self._connection.close()
